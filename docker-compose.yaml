@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+    redis:
+        image: redis:alpine
+        restart: always
+        networks:
+            - server_side
+        ports:
+            - 6379:6379
+        volumes:
+            - redis_data:/data
+    backend:
+        build:
+            context: backend
+            target: development
+        environment:
+            - SERVER_ADDR=0.0.0.0:8080
+            - RUST_LOG=debug
+        networks:
+            - client_side
+            - server_side
+        ports:
+            - 8080:8080
+        volumes:
+            - ./backend/src:/code/src
+            - backend_cache:/code/target
+        depends_on:
+            - redis
+
+volumes:
+    backend_cache:
+    redis_data:
+
+networks:
+    client_side:
+    server_side:
+
