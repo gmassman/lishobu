@@ -21,7 +21,7 @@ services:
         environment:
             - SERVER_ADDR=0.0.0.0:8080
             - RUST_LOG=debug
-            - PG_CONN=postgres://postgres:postgres@0.0.0.0:5432/lishobu
+            - PG_CONN=postgres://postgres:postgres@db:5432/lishobu
         networks:
             - client_side
             - server_side
