@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PG_CONN="${PG_CONN:-postgres://postgres:postgres@localhost:5432}"
 DB_NAME="${DB_NAME:-dev_lishobu}"

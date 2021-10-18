@@ -1,10 +1,15 @@
 use actix_web::middleware::Logger;
-use actix_web::{get, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpResponse, HttpServer};
 use env_logger::Env;
 
-#[get("/")]
-async fn index() -> HttpResponse {
-    HttpResponse::Ok().body("I'm a response\n")
+async fn index(
+    db_pool: web::Data<sqlx::PgPool>,
+) -> Result<HttpResponse, Box<dyn std::error::Error>> {
+    let result: (i32,) = sqlx::query_as("SELECT floor(random() * 10)::int")
+        .fetch_one(db_pool.get_ref())
+        .await?;
+    let response = format!("I'm a random number: {}\n", result.0);
+    Ok(HttpResponse::Ok().body(response))
 }
 
 fn server_address() -> String {
@@ -26,12 +31,16 @@ async fn connect_db() -> Result<sqlx::Pool<sqlx::Postgres>, sqlx::Error> {
 async fn main() -> std::io::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let pool = connect_db()
+    let db_pool = connect_db()
         .await
         .expect("Failed to connect to the database");
+    let db_pool = web::Data::new(db_pool);
 
-    HttpServer::new(|| {
-        App::new().wrap(Logger::default()).service(index)
+    HttpServer::new(move || {
+        App::new()
+            .wrap(Logger::default())
+            .app_data(db_pool.clone())
+            .route("/", web::get().to(index))
         //.data(data.clone())
         //.service(show_count)
         //.service(add_one)
