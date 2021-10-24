@@ -32,8 +32,24 @@ services:
             - backend_cache:/app/target
         depends_on:
             - db
+    frontend:
+        build:
+            context: frontend
+            target: development
+        environment:
+            - BACKEND_HOST=backend:8080
+        networks:
+            - client_side
+        ports:
+            - 13000:3000
+        volumes:
+            - ./frontend/src:/app/src
+            - frontend_cache:/app/public
+        depends_on:
+            - backend
 
 volumes:
+    frontend_cache:
     backend_cache:
     db_data:
 
