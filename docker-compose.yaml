@@ -18,15 +18,13 @@ services:
         build:
             context: backend
             target: development
-        environment:
-            - SERVER_ADDR=0.0.0.0:8080
-            - RUST_LOG=debug
-            - PG_CONN=postgres://postgres:postgres@db:5432/lishobu
+        env_file:
+            - ./backend/.env
         networks:
             - client_side
             - server_side
         ports:
-            - 18080:8080
+            - 8080:8080
         volumes:
             - ./backend/src:/app/src
             - backend_cache:/app/target
@@ -36,12 +34,12 @@ services:
         build:
             context: frontend
             target: development
-        environment:
-            - BACKEND_HOST=backend:8080
+        env_file:
+            - ./frontend/.env
         networks:
             - client_side
         ports:
-            - 13000:3000
+            - 3000:3000
         volumes:
             - ./frontend/src:/app/src
             - frontend_cache:/app/public
