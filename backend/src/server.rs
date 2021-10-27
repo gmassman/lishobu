@@ -1,7 +1,7 @@
 use crate::{config::Conf, error::LSBError};
 use actix_web::dev::Server;
-use actix_web::middleware::Logger;
-use actix_web::{web, http::header, App, HttpResponse, HttpServer};
+use actix_web::middleware::{Condition, DefaultHeaders, Logger};
+use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
 pub struct LSBServer {
@@ -29,35 +29,28 @@ async fn connect_db(pg_conn: &String) -> Result<Pool<Postgres>, sqlx::Error> {
         .await
 }
 
-async fn index(
-    db_pool: web::Data<sqlx::PgPool>,
-    rust_env: web::Data<String>
-) -> Result<HttpResponse, Box<dyn std::error::Error>> {
-    let result: (i32,) = sqlx::query_as("SELECT floor(random() * 10)::int")
-        .fetch_one(db_pool.get_ref())
-        .await?;
-    let body = format!("I'm a random number: {}\n", result.0);
-
-    let mut response = HttpResponse::Ok();
-    let response = if rust_env.get_ref() == "development" {  // TODO move this check into middleware
-        response
-            .insert_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"))
-            .body(body)
-    } else {
-        response.body(body)
-    };
-
-    Ok(response)
+async fn index(db_pool: web::Data<sqlx::PgPool>) -> impl Responder {
+    let result: Result<(i32,), sqlx::Error> =
+        sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
+            .fetch_one(db_pool.get_ref())
+            .await;
+    match result {
+        Ok(num) => HttpResponse::Ok().body(format!("random number is {}", num.0)),
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
 }
 
 async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBError> {
+    let cors_enabled = conf.rust_env == "development";
     let db_pool = web::Data::new(db_pool);
-    let rust_env = web::Data::new(conf.rust_env.clone());
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
+            .wrap(Condition::new(
+                cors_enabled,
+                DefaultHeaders::new().header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+            ))
             .app_data(db_pool.clone())
-            .app_data(rust_env.clone())
             .route("/", web::get().to(index))
     })
     .bind(&conf.server_address)?

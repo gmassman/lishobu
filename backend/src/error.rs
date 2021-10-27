@@ -38,3 +38,4 @@ impl From<io::Error> for LSBError {
         }
     }
 }
+

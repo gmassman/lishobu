@@ -12,10 +12,11 @@ COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM base AS development
+RUN cargo install cargo-watch
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-CMD [ "cargo", "run" ]
+CMD [ "cargo", "watch", "-x", "run" ]
 
 FROM base AS release 
 COPY --from=planner /app/recipe.json recipe.json
