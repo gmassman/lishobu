@@ -7,9 +7,10 @@ async fn main() -> Result<()> {
     env_logger::init();
     let config = get_config().expect("Failed to load configuration");
 
-    let lsb_server = LSBServer::build(config)
+    let lsb_server = LSBServer::build(&config)
         .await
         .expect("Failed to build the application");
+
     lsb_server
         .run()
         .await

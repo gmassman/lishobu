@@ -1,4 +1,6 @@
 use crate::{config::Conf, error::LSBError};
+use actix_session::CookieSession;
+//use actix_session::{CookieSession, Session};
 use actix_web::dev::Server;
 use actix_web::middleware::{Condition, DefaultHeaders, Logger};
 use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
@@ -9,10 +11,10 @@ pub struct LSBServer {
 }
 
 impl LSBServer {
-    pub async fn build(config: Conf) -> Result<Self, LSBError> {
+    pub async fn build(config: &Conf) -> Result<Self, LSBError> {
         let db_pool = connect_db(&config.pg_conn).await?;
 
-        let server = run_app(db_pool, &config).await?;
+        let server = run_app(db_pool, config).await?;
         Ok(LSBServer { server })
     }
 
@@ -41,15 +43,20 @@ async fn index(db_pool: web::Data<sqlx::PgPool>) -> impl Responder {
 }
 
 async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBError> {
-    let cors_enabled = conf.rust_env == "development";
+    let dev_env = conf.rust_env == "development";
     let db_pool = web::Data::new(db_pool);
+
+    let mut cookie_secret = vec![0; 32];
+    cookie_secret.clone_from_slice(&*conf.cookie_secret);
+
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .wrap(Condition::new(
-                cors_enabled,
+                dev_env,
                 DefaultHeaders::new().header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
             ))
+            .wrap(CookieSession::private(&cookie_secret).secure(!dev_env))
             .app_data(db_pool.clone())
             .route("/", web::get().to(index))
     })

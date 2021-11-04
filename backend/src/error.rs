@@ -1,4 +1,5 @@
-use std::{fmt, env, io};
+use std::error::Error;
+use std::{env, fmt, io};
 
 #[derive(Debug)]
 pub struct LSBError {
@@ -11,6 +12,8 @@ impl fmt::Display for LSBError {
         write!(f, "{}", self.message)
     }
 }
+
+impl Error for LSBError {}
 
 impl From<env::VarError> for LSBError {
     fn from(error: env::VarError) -> Self {
@@ -38,4 +41,3 @@ impl From<io::Error> for LSBError {
         }
     }
 }
-
