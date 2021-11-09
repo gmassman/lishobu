@@ -1,10 +1,10 @@
-use crate::{config::Conf, error::LSBError};
-use actix_session::CookieSession;
-//use actix_session::{CookieSession, Session};
+use crate::config::Conf;
+use crate::error::{LSBError, Result};
+use actix_session::{CookieSession, Session};
 use actix_web::dev::Server;
 use actix_web::middleware::{Condition, DefaultHeaders, Logger};
 use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::{postgres::PgPoolOptions, PgPool, Pool, Postgres};
 
 pub struct LSBServer {
     pub server: Server,
@@ -31,13 +31,41 @@ async fn connect_db(pg_conn: &String) -> Result<Pool<Postgres>, sqlx::Error> {
         .await
 }
 
-async fn index(db_pool: web::Data<sqlx::PgPool>) -> impl Responder {
-    let result: Result<(i32,), sqlx::Error> =
-        sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
-            .fetch_one(db_pool.get_ref())
-            .await;
+async fn gen_rand(db: &PgPool) -> Result<i32> {
+    let result: (i32,) = sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
+        .fetch_optional(db)
+        .await?
+        .unwrap();
+
+    Ok(result.0)
+}
+
+fn update_count(session: Session, num: i32) -> Result<i32, LSBError> {
+    if let Some(count) = session.get::<i32>("count")? {
+        session.insert("count", count + num)?;
+        Ok(count)
+    } else {
+        session.insert("count", num)?;
+        Ok(num)
+    }
+}
+
+async fn index(session: Session, db_pool: web::Data<PgPool>) -> impl Responder {
+    //let result: Result<(i32,), sqlx::Error> =
+    //sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
+    //.fetch_one(db_pool.get_ref())
+    //.await;
+    let result = gen_rand(db_pool.get_ref()).await;
     match result {
-        Ok(num) => HttpResponse::Ok().body(format!("random number is {}", num.0)),
+        Ok(num) => {
+            let sess = update_count(session, num);
+            match sess {
+                Ok(total) => {
+                    HttpResponse::Ok().body(format!("random number is {}, total is {}", num, total))
+                }
+                Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+            }
+        }
         Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
     }
 }
@@ -51,12 +79,12 @@ async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBErro
 
     let server = HttpServer::new(move || {
         App::new()
-            .wrap(Logger::default())
             .wrap(Condition::new(
                 dev_env,
                 DefaultHeaders::new().header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
             ))
             .wrap(CookieSession::private(&cookie_secret).secure(!dev_env))
+            .wrap(Logger::default())
             .app_data(db_pool.clone())
             .route("/", web::get().to(index))
     })

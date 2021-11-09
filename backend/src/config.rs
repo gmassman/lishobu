@@ -1,6 +1,8 @@
-use anyhow::{anyhow, Result};
+use crate::error::LSBError;
 use std::convert::TryInto;
 use std::env;
+
+pub type Result<T, E = LSBError> = std::result::Result<T, E>;
 
 pub struct Conf {
     pub server_address: String,
@@ -14,9 +16,12 @@ pub fn get_config() -> Result<Conf> {
     let cookie_secret: Box<[u8; 32]> = match cookie_secret.try_into() {
         Ok(array) => array,
         Err(o) => {
-            return Err(anyhow!(
-                "Failed to load 32 byte COOKIE_SECRET from env, got {} bytes",
-                o.len()
+            return Err(LSBError::new(
+                String::from("config"),
+                format!(
+                    "Failed to load 32 byte COOKIE_SECRET from env, got {} bytes",
+                    o.len()
+                ),
             ))
         }
     };

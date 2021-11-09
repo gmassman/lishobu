@@ -6,6 +6,7 @@
     let data: string = ""
     const getData = async () => {
         const resp = await axios.get(api_host)
+        debugger
         data = resp.data
     }
 </script>

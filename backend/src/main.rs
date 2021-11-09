@@ -1,5 +1,5 @@
-use anyhow::Result;
 use lishobu::config::get_config;
+use lishobu::error::Result;
 use lishobu::server::LSBServer;
 
 #[actix_web::main]
