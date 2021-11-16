@@ -10,7 +10,7 @@ FROM base AS development
 # livereload port
 ENV NODE_ENV=development
 RUN npm install
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "watch"]
 
 FROM base AS production
 

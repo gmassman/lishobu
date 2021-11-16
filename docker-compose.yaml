@@ -28,6 +28,7 @@ services:
         volumes:
             - ./backend/src:/app/src
             - backend_cache:/app/target
+            - frontend_cache:/app/dist
         depends_on:
             - db
     frontend:
@@ -42,7 +43,7 @@ services:
             - 3000:3000
         volumes:
             - ./frontend/src:/app/src
-            - frontend_cache:/app/public
+            - frontend_cache:/app/dist
         depends_on:
             - backend
 

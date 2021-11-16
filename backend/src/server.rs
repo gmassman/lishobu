@@ -1,5 +1,6 @@
 use crate::config::Conf;
 use crate::error::{LSBError, Result};
+use actix_files::{Files, NamedFile};
 use actix_session::{CookieSession, Session};
 use actix_web::dev::Server;
 use actix_web::middleware::{Condition, DefaultHeaders, Logger};
@@ -50,7 +51,7 @@ fn update_count(session: Session, num: i32) -> Result<i32, LSBError> {
     }
 }
 
-async fn index(session: Session, db_pool: web::Data<PgPool>) -> impl Responder {
+async fn api_index(session: Session, db_pool: web::Data<PgPool>) -> impl Responder {
     //let result: Result<(i32,), sqlx::Error> =
     //sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
     //.fetch_one(db_pool.get_ref())
@@ -60,9 +61,8 @@ async fn index(session: Session, db_pool: web::Data<PgPool>) -> impl Responder {
         Ok(num) => {
             let sess = update_count(session, num);
             match sess {
-                Ok(total) => {
-                    HttpResponse::Ok().body(format!("random number is {}, total is {}", num, total))
-                }
+                Ok(total) => HttpResponse::Ok()
+                    .body(format!("random number is {}, total is {}\n", num, total)),
                 Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
             }
         }
@@ -73,6 +73,9 @@ async fn index(session: Session, db_pool: web::Data<PgPool>) -> impl Responder {
 async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBError> {
     let dev_env = conf.rust_env == "development";
     let db_pool = web::Data::new(db_pool);
+    let cookie_expiry = conf.cookie_expiry;
+    let server_address = conf.server_address.clone();
+    let frontend_path = conf.frontend_path.clone();
 
     let mut cookie_secret = vec![0; 32];
     cookie_secret.clone_from_slice(&*conf.cookie_secret);
@@ -83,10 +86,23 @@ async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBErro
                 dev_env,
                 DefaultHeaders::new().header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
             ))
-            .wrap(CookieSession::private(&cookie_secret).secure(!dev_env))
+            .wrap(
+                CookieSession::private(&cookie_secret)
+                    .domain(server_address.clone())
+                    .expires_in(cookie_expiry.clone())
+                    .secure(!dev_env),
+            )
             .wrap(Logger::default())
             .app_data(db_pool.clone())
-            .route("/", web::get().to(index))
+            .route("/api", web::get().to(api_index))
+            .service(
+                Files::new("/", &frontend_path.clone())
+                    .redirect_to_slash_directory()
+                    .index_file("index.html")
+                    //.default_handler(
+                        //NamedFile::open(format!("{}/404.html", frontend_path)).unwrap(),
+                    //),
+            )
     })
     .bind(&conf.server_address)?
     .run();

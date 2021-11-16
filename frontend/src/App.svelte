@@ -5,9 +5,13 @@
 
     let data: string = ""
     const getData = async () => {
-        const resp = await axios.get(api_host)
-        debugger
-        data = resp.data
+        // const resp = await axios.get(api_host)
+        // debugger
+        // data = resp.data
+        fetch(api_host)
+        .then(res => {
+            debugger;
+        })
     }
 </script>
 
@@ -15,7 +19,7 @@
     API at {api_host}
 
     <button on:click={getData}>Backend says</button>
-    {data}
+    // {data}
 </main>
 
 <style>
