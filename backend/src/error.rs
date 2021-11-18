@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::{env, fmt, io};
 
 pub type Result<T, E = LSBError> = std::result::Result<T, E>;
@@ -14,8 +13,6 @@ impl fmt::Display for LSBError {
         write!(f, "{}", self.message)
     }
 }
-
-impl Error for LSBError {}
 
 impl LSBError {
     pub fn new(kind: String, message: String) -> Self {

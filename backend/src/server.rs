@@ -1,11 +1,12 @@
-use crate::config::Conf;
-use crate::error::{LSBError, Result};
 use actix_files::{Files, NamedFile};
 use actix_session::{CookieSession, Session};
 use actix_web::dev::Server;
-use actix_web::middleware::{Condition, DefaultHeaders, Logger};
-use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::middleware::Logger;
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use sqlx::{postgres::PgPoolOptions, PgPool, Pool, Postgres};
+
+use crate::config::Conf;
+use crate::error::{LSBError, Result};
 
 pub struct LSBServer {
     pub server: Server,
@@ -34,7 +35,7 @@ async fn connect_db(pg_conn: &String) -> Result<Pool<Postgres>, sqlx::Error> {
 
 async fn gen_rand(db: &PgPool) -> Result<i32> {
     let result: (i32,) = sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
-        .fetch_optional(db)
+        .fetch_optional(db) // this works but fetch_one doesn't, wtf?
         .await?
         .unwrap();
 
@@ -43,8 +44,9 @@ async fn gen_rand(db: &PgPool) -> Result<i32> {
 
 fn update_count(session: Session, num: i32) -> Result<i32, LSBError> {
     if let Some(count) = session.get::<i32>("count")? {
-        session.insert("count", count + num)?;
-        Ok(count)
+        let total = count + num;
+        session.insert("count", total)?;
+        Ok(total)
     } else {
         session.insert("count", num)?;
         Ok(num)
@@ -52,10 +54,6 @@ fn update_count(session: Session, num: i32) -> Result<i32, LSBError> {
 }
 
 async fn api_index(session: Session, db_pool: web::Data<PgPool>) -> impl Responder {
-    //let result: Result<(i32,), sqlx::Error> =
-    //sqlx::query_as("SELECT floor((random() * 10) + 1)::int")
-    //.fetch_one(db_pool.get_ref())
-    //.await;
     let result = gen_rand(db_pool.get_ref()).await;
     match result {
         Ok(num) => {
@@ -74,7 +72,6 @@ async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBErro
     let dev_env = conf.rust_env == "development";
     let db_pool = web::Data::new(db_pool);
     let cookie_expiry = conf.cookie_expiry;
-    let server_address = conf.server_address.clone();
     let frontend_path = conf.frontend_path.clone();
 
     let mut cookie_secret = vec![0; 32];
@@ -82,13 +79,8 @@ async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBErro
 
     let server = HttpServer::new(move || {
         App::new()
-            .wrap(Condition::new(
-                dev_env,
-                DefaultHeaders::new().header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
-            ))
             .wrap(
                 CookieSession::private(&cookie_secret)
-                    .domain(server_address.clone())
                     .expires_in(cookie_expiry.clone())
                     .secure(!dev_env),
             )
@@ -99,9 +91,9 @@ async fn run_app(db_pool: Pool<Postgres>, conf: &Conf) -> Result<Server, LSBErro
                 Files::new("/", &frontend_path.clone())
                     .redirect_to_slash_directory()
                     .index_file("index.html")
-                    //.default_handler(
-                        //NamedFile::open(format!("{}/404.html", frontend_path)).unwrap(),
-                    //),
+                    .default_handler(
+                        NamedFile::open(format!("{}/404.html", frontend_path)).unwrap(),
+                    ),
             )
     })
     .bind(&conf.server_address)?

@@ -27,7 +27,7 @@ pub fn get_config() -> Result<Conf> {
     };
 
     Ok(Conf {
-        server_address: env::var("SERVER_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into()),
+        server_address: env::var("SERVER_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".into()),
         rust_env: env::var("RUST_ENV").unwrap_or_else(|_| "development".into()),
         pg_conn: env::var("PG_CONN")?,
         frontend_path: env::var("FRONTEND_PATH")?,
