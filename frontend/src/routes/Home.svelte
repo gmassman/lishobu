@@ -1,7 +1,7 @@
 <script lang="ts">
     import axios from 'axios'
 
-    let api_host = import.meta.env.VITE_API_HOST as string
+    let api_host = process.env.API_HOST as string
 
     let data = ""
     const getData = async () => {

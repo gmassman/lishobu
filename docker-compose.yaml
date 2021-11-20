@@ -31,6 +31,7 @@ services:
             - frontend_cache:/app/dist
         depends_on:
             - db
+            - frontend
     frontend:
         build:
             context: frontend
@@ -44,8 +45,6 @@ services:
         volumes:
             - ./frontend/src:/app/src
             - frontend_cache:/app/dist
-        depends_on:
-            - backend
 
 volumes:
     frontend_cache:

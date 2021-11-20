@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "watch": "vite build --watch",
+    "watch": "node scripts/build.js --watch",
     "build": "vite build",
     "serve": "vite preview --host 0.0.0.0",
     "check": "svelte-check --tsconfig ./tsconfig.json"
@@ -13,6 +13,7 @@
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.11",
     "@tsconfig/svelte": "^2.0.1",
     "axios": "^0.24.0",
+    "esbuild-svelte": "^0.5.7",
     "svelte": "^3.37.0",
     "svelte-check": "^2.1.0",
     "svelte-preprocess": "^4.7.2",
